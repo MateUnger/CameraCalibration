@@ -54,7 +54,7 @@ with open("./camera_params.json", "r") as f:
 input_dir = "./charuco_data/*.jpg"
 output_dir = "./charuco_output/"
 
-camera_coords = []
+all_camera_coords = []
 calibration_results = {}
 
 
@@ -129,7 +129,7 @@ for file in glob.glob(input_dir):
                 None,
                 None,
             )
-            print(f"rotation:\n {rvec} \n \n translation: \n{tvec}\n")
+            # print(f"rotation:\n {rvec} \n \n translation: \n{tvec}\n")
 
             # If pose estimation is successful, draw the axis as the origin
             if success:
@@ -143,13 +143,17 @@ for file in glob.glob(input_dir):
                     thickness=5,
                 )
 
+            # rotation matrix from rotation vector
             R, jac = cv.Rodrigues(rvec)
-            Xw = -np.matrix(R).T * np.matrix(tvec)
-            camera_coords.append(Xw)
-            distance_mm = round(np.linalg.norm(Xw), 2)
+
+            camera_position = -np.matrix(R).T * np.matrix(tvec)
+            all_camera_coords.append((cam_serial_number, camera_position))
+            distance_mm = round(np.linalg.norm(camera_position), 2)
             print(
                 f"distance: {math.floor(distance_mm/1000)} m, {round((distance_mm-math.floor(distance_mm/1000)*1000)/10,2)} cm "
             )
+            print(f"camera coords: {camera_position}")
+
     else:
         print(f"cant find markers for image: {file}")
 
@@ -188,7 +192,7 @@ for file in glob.glob(input_dir):
         )
     )
 
-    print(f"\nOverall reprojection error: {round(reprojection_error,3)} pixels")
+    print(f"\nReprojection error: {round(reprojection_error,3)} pixels")
 
 
 ## Drawing everything
@@ -210,6 +214,7 @@ ax.set_zlim(-4000, 0)
 
 ax.plot3D(0, 0, 0, "mo", markersize=3, label="origin")
 
+# drawing the board
 for idx in range(-1, len(board_corners) - 1):
     label = "_nolegend_"
     if idx == 0:
@@ -222,11 +227,11 @@ for idx in range(-1, len(board_corners) - 1):
         label=label,
     )
 
-for idx, coords in enumerate(camera_coords):
-    label = "_nolegend_"
-    if idx == 0:
-        label = "Camera"
-    ax.plot3D(coords[0], coords[1], coords[2], "r^", label=label)
+# drawing cameras
+cam_styles = ["rv", "rs", "ro", "rd"]
+for idx, (cam_name, coords) in enumerate(all_camera_coords):
+    label = cam_name
+    ax.plot3D(coords[0], coords[1], coords[2], cam_styles[idx], label=label)
 
 ax.view_init(elev=-145, azim=60)
 ax.legend()
