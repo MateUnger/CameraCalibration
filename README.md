@@ -3,6 +3,12 @@ Performs extrinsic calibration of 1-4 cameras using a charuco board. Board shoul
 
 Results are saved in 'calibration_results.json' file. When run as a script it also produces an interactive 3D plot of the cameras' positions in relation to the calibraiton pattern. 
 
+[OpenCV Pose Overview](https://docs.opencv.org/4.x/d5/d1f/calib3d_solvePnP.html)
+
+[Charuco Documentation](https://docs.opencv.org/3.4/d9/d6a/group__aruco.html)
+
+
+
 
 ## Coordinate transforms used
 
