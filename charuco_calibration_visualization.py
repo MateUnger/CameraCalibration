@@ -1,6 +1,8 @@
+import os
 import math
 import glob
 import json
+import datetime
 import cv2 as cv
 import numpy as np
 import matplotlib.pyplot as plt
@@ -53,6 +55,7 @@ with open("./camera_params.json", "r") as f:
 
 input_dir = "./charuco_data/*.jpg"
 output_dir = "./charuco_output/"
+json_save_dir = "./"
 
 all_camera_coords = []
 calibration_results = {}
@@ -65,6 +68,8 @@ for file in glob.glob(input_dir):
     marker_img = cv.imread(file)
 
     cam_serial_number = get_SN(file)
+
+    calibration_results[cam_serial_number] = {}
 
     # select the corresponding factory-calibration data
     camera_matrix = np.array(
@@ -129,9 +134,8 @@ for file in glob.glob(input_dir):
                 None,
                 None,
             )
-            # print(f"rotation:\n {rvec} \n \n translation: \n{tvec}\n")
 
-            # If pose estimation is successful, draw the axis as the origin
+            # If pose estimation is successful, draw the axis at the origin
             if success:
                 cv.drawFrameAxes(
                     corners_img,
@@ -143,16 +147,30 @@ for file in glob.glob(input_dir):
                     thickness=5,
                 )
 
-            # rotation matrix from rotation vector
+            # calculating rotation matrix, camera position
             R, jac = cv.Rodrigues(rvec)
-
             camera_position = -np.matrix(R).T * np.matrix(tvec)
             all_camera_coords.append((cam_serial_number, camera_position))
-            distance_mm = round(np.linalg.norm(camera_position), 2)
+
+            # distance of camera from origin
+            distance_mm = round(np.linalg.norm(camera_position), 3)
+
+            calibration_results[cam_serial_number]["time"] = str(
+                datetime.datetime.now()
+            )
+            calibration_results[cam_serial_number]["input_filename"] = file
+            calibration_results[cam_serial_number][
+                "camera_position"
+            ] = camera_position.tolist()
+
+            calibration_results[cam_serial_number]["distance_mm"] = distance_mm
+            calibration_results[cam_serial_number]["rvec"] = rvec.tolist()
+            calibration_results[cam_serial_number]["tvec"] = tvec.tolist()
+
             print(
                 f"distance: {math.floor(distance_mm/1000)} m, {round((distance_mm-math.floor(distance_mm/1000)*1000)/10,2)} cm "
             )
-            print(f"camera coords: {camera_position}")
+            print(f"camera coords: \n{camera_position}")
 
     else:
         print(f"cant find markers for image: {file}")
@@ -191,12 +209,16 @@ for file in glob.glob(input_dir):
             None,
         )
     )
+    calibration_results[cam_serial_number]["reprojection_error"] = reprojection_error
 
     print(f"\nReprojection error: {round(reprojection_error,3)} pixels")
 
+# save calibration results
+with open(os.path.join(json_save_dir, "calibration_results.json"), "w") as outfile:
+    outfile.write(json.dumps(calibration_results, indent=4))
+
 
 ## Drawing everything
-
 fig = plt.figure(figsize=(7, 7))
 ax = fig.add_subplot(111, projection="3d")
 ax.set_aspect("auto")
@@ -208,7 +230,6 @@ ax.set_zlabel("z")
 
 ax.set_xlim(-6000, 6000)
 ax.set_ylim(-6000, 6000)
-# ax.set_zlim(-6000, 6000)
 ax.set_zlim(-4000, 0)
 
 
